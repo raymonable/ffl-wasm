@@ -1,0 +1,11 @@
+bin/AFL*
+bin/*.js
+bin/*.wasm
+
+build/
+
+AFL*
+FFL*
+
+*.wasm
+*.js

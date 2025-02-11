@@ -1,0 +1,34 @@
+<script src="ffl_wasm.js"></script>
+
+<script>
+    fetch("AFLResHigh_2_3.dat")
+        .then(_ => _.arrayBuffer())
+        .then(data => {
+            // expose to context for debugging purpose (this is disgusting)
+            window.d = data
+
+            let address = Module.ccall("initBuffer", ["number"], ["number"], [data.byteLength]);
+            console.log(address, data.byteLength);
+            Module.HEAP8.set(new Uint8Array(data), address);
+            console.log(Module.ccall("init", ["boolean"], null));
+            console.log(Module.ccall("test", ["boolean"]));
+
+            let d = a.find(v => v.fmt == 2 && v.width == 152);
+
+            let canvas = document.createElement("canvas");
+            document.body.appendChild(canvas);
+            canvas.width = d.width;
+            canvas.height = d.height;
+
+            let ctx = canvas.getContext("2d");
+
+            let d2 = ctx.getImageData(0, 0, d.width, d.height);
+            for (var i = 0; d.width * d.height * 4 > i; i++) {
+                let v = Module.HEAPU8[i + d.ptr];
+                d2.data[i] = v;
+            }
+            console.log(d2.data, d2.data.filter(v => {return v != 0}));
+
+            ctx.putImageData(d2, 0, 0);
+        })
+</script>
