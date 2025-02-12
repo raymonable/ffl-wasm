@@ -11,36 +11,12 @@ const unsigned char cJasmineStoreData[96] = {
     0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A
 };
 FFLCharModel gCharModel;
-
 FFLShaderCallback gShaderCallback;
-FFLTextureCallback gTextureCallback{};
 
 #include <iostream>
-#include <string>
+
 void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
     std::cout << "Yep" << std::endl;
-}
-void textureCallbackCreate(void* v, const FFLTextureInfo* pTextureInfo, FFLTexture* pTexture) {
-    std::cout << "Nah" << std::endl;
-    std::cout << std::to_string(pTextureInfo->format) << " " << pTextureInfo->width << " " << pTextureInfo->height << std::endl;
-
-    void* data = malloc(pTextureInfo->imageSize);
-    memcpy(data, pTextureInfo->imagePtr, (pTextureInfo->imageSize));
-
-    // temporary...
-    EM_ASM({
-        if (!window["a"])
-            window["a"] = [];
-            window["a"].push({
-                ptr: $0,
-                fmt: $2,
-                width: $1,
-                height: $3
-            });
-        }, data, pTextureInfo->width, pTextureInfo->format, pTextureInfo->height);
-}
-void textureCallbackDelete(void* v, FFLTexture* pTexture) {
-    std::cout << "Wow" << std::endl;
 }
 
 void* initBuffer(int size) {
@@ -60,7 +36,7 @@ bool init() {
     resourceDesc.pData[FFL_RESOURCE_TYPE_HIGH] = globalInitializerData.buffer;
 
     if (FFLInitRes(FFL_FONT_REGION_JP_US_EU, &resourceDesc) != FFL_RESULT_OK)
-        // TODO: handle better error logging?
+        // TODO: better error logging?
         return false;
 
     if (!FFLIsAvailable())
@@ -68,11 +44,6 @@ bool init() {
 
     gShaderCallback.pDrawFunc = shaderDrawCallback;
     FFLSetShaderCallback(&gShaderCallback);
-
-    gTextureCallback.pCreateFunc = textureCallbackCreate;
-    gTextureCallback.pDeleteFunc = textureCallbackDelete;
-    gTextureCallback.useOriginalTileMode = false;
-    FFLSetTextureCallback(&gTextureCallback);
 
     FFLInitResGPUStep();
 
@@ -97,6 +68,9 @@ bool test() {
         return false;
 
     auto* charModel = (FFLiCharModel*)&gCharModel;
+
+    FFLDrawOpa(&gCharModel);
+    FFLDrawXlu(&gCharModel);
 
     return true;
 };
