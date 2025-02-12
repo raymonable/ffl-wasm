@@ -16,7 +16,39 @@ FFLShaderCallback gShaderCallback;
 #include <iostream>
 
 void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
-    std::cout << "Yep" << std::endl;
+    if (drawParam->primitiveParam.pIndexBuffer != nullptr) {
+        std::cout << drawParam->modulateParam.type << std::endl;
+
+        uint32_t indexCount = drawParam->primitiveParam.indexCount;
+        const uint16_t* indices = static_cast<const uint16_t*>(drawParam->primitiveParam.pIndexBuffer);
+        uint16_t maxIndex = 0;
+        for (uint32_t i = 0; i < indexCount; ++i)
+            if (indices[i] > maxIndex)
+                maxIndex = indices[i];
+        uint32_t vertexCount = maxIndex + 1;
+
+        // for now let's just parse the vertex buffer
+        auto buffer = drawParam->attributeBufferParam.attributeBuffers[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION];
+        uint32_t stride = buffer.stride;
+        auto* ptr = static_cast<uint8_t*>(buffer.ptr);
+
+        if (ptr != nullptr) {
+
+            for (uint32_t i = 0; i < vertexCount; ++i) {
+                void* elementPtr = ptr + (i * stride);
+                std::cout << "stride" << " " << std::to_string(stride) << std::endl;
+                auto* position = static_cast<float*>(elementPtr);
+                std::string b = "v ";
+                for (int j = 0; 3 > j; j++)
+                    b += std::to_string(position[j]) + " ";
+                EM_ASM({
+                    if (!window["b"])
+                        window["b"] = [];
+                    window["b"].push(Module.UTF8ToString($0));
+                }, b.c_str());
+            };
+        }
+    }
 }
 
 void* initBuffer(int size) {
