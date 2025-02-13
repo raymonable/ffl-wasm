@@ -8,8 +8,9 @@
 
 class Buffer {
 public:
-	Buffer(size_t s) : size(s) {
+	Buffer(int s) : size(s) {
 		this->ptr = malloc(size);
+		memset(this->ptr, 0, size);
 	};
     ~Buffer() {
       	if (this->ptr != nullptr)
@@ -19,16 +20,16 @@ public:
     T get() {
 		return static_cast<T>(this->ptr);
     };
-	size_t size;
+	int size = 0;
 private:
 	void* ptr = nullptr;
 };
 
-FFLCharModel getMii();
+FFLCharModel* getMii();
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);
 	EMSCRIPTEN_KEEPALIVE bool mii();
 
-	EMSCRIPTEN_KEEPALIVE void* renderFaceTextures(FFLExpression);
+	EMSCRIPTEN_KEEPALIVE void* generateTextures(int expression);
 }

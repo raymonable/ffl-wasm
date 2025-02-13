@@ -7,8 +7,8 @@
 Buffer* gFFLDataBuffer = nullptr;
 
 Buffer* gMiiDataBuffer = nullptr;
-FFLCharModel gMiiCharModel;
-FFLCharModel getMii() {
+FFLCharModel* gMiiCharModel;
+FFLCharModel* getMii() {
     return gMiiCharModel;
 };
 
@@ -28,7 +28,6 @@ void* init(int size) {
 
         FFLInitResGPUStep();
 
-        delete gFFLDataBuffer;
         gMiiDataBuffer = new Buffer(96);
         return gMiiDataBuffer->get<void*>();
     } else {
@@ -40,24 +39,25 @@ void* init(int size) {
 bool mii() {
     if (!gMiiDataBuffer)
         return false;
+    if (!gMiiCharModel)
+        gMiiCharModel = new FFLCharModel();
 
     FFLCharModelSource modelSource{};
     modelSource.index = 0;
-    modelSource.pBuffer = gMiiDataBuffer->get<char*>();
+    modelSource.pBuffer = gMiiDataBuffer->get<unsigned char*>();
     modelSource.dataSource = FFL_DATA_SOURCE_STORE_DATA;
 
     // TODO: expression and resolution should be dynamic
     FFLCharModelDesc modelDescription{};
-    modelDescription.resolution = static_cast<FFLResolution>(512);
-    modelDescription.expressionFlag = FFL_EXPRESSION_ANGER;
+    modelDescription.resolution = FFL_RESOLUTION_TEX_512;
+    modelDescription.expressionFlag = 1 << FFL_EXPRESSION_NORMAL;
     modelDescription.modelFlag = FFL_MODEL_FLAG_NORMAL;
     modelDescription.resourceType = FFL_RESOURCE_TYPE_HIGH;
 
-    if (FFLInitCharModelCPUStep(&gMiiCharModel, &modelSource, &modelDescription) != FFL_RESULT_OK)
+    if (FFLInitCharModelCPUStep(gMiiCharModel, &modelSource, &modelDescription) != FFL_RESULT_OK)
         return false;
 
-    // TODO: register custom shader callback so we can copy the facial meshes to Three.js
-    // TODO: render requested expressions
+    // TODO: output mesh
 
     return true;
 };

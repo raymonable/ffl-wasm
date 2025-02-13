@@ -4,6 +4,9 @@
             body {
                 margin: 0;
             }
+            canvas {
+                background: yellow;
+            }
         </style>
     </head>
     <body>
@@ -39,11 +42,11 @@
             animate();
         </script>
 
-        <canvas></canvas>
+        <canvas width="256" height="512"></canvas>
 
         <script>
             const canvas = document.querySelector("canvas");
-            canvas.remove();
+
 
             fetch("AFLResHigh_2_3.dat")
                 .then(_ => _.arrayBuffer())
@@ -66,10 +69,13 @@
                     let miiAddress = Module.ccall("init", ["number"], null);
                     console.log(!miiAddress ? "Failed to start" : "FFL good")
 
-                    let miiData = await fetch("mii_024.ffsd").then(_ => _.arrayBuffer());
+                    let miiData = await fetch("08_Sono-chan.cfsd").then(_ => _.arrayBuffer());
                     console.log(miiData);
                     Module.HEAPU8.set(new Uint8Array(miiData), miiAddress);
-                    console.log(Module.ccall("mii", ["boolean"]) ? "Successfully set Mii" : "Failed to set Mii.")
+                    Module.ccall("generateTextures", null, ["number"], [0]); // TEMPORARY, THIS IS TO FIX RODERING. DO NOT USE
+                    console.log(Module.ccall("mii", ["boolean"]) ? "Successfully set Mii" : "Failed to set Mii.");
+
+                    let textureAddress = Module.ccall("generateTextures", null, ["number"], [1]);
 
                     // concept for loading heap
                     /*
