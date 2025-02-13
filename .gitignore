@@ -1,7 +1,3 @@
-bin/AFL*
-bin/*.js
-bin/*.wasm
-
 build/
 
 AFL*

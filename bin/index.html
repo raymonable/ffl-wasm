@@ -1,0 +1,87 @@
+<html>
+    <head>
+        <style>
+            body {
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <script src="ffl_wasm.js"></script>
+
+        <script type="module">
+            import * as THREE from 'three';
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+            const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+            const cube = new THREE.Mesh( geometry, material );
+            scene.add( cube );
+
+            camera.position.z = 5;
+
+            function animate() {
+
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+
+                renderer.render( scene, camera );
+
+                requestAnimationFrame(animate);
+
+            };
+            animate();
+        </script>
+
+        <canvas></canvas>
+
+        <script>
+            const canvas = document.querySelector("canvas");
+            canvas.remove();
+
+            fetch("AFLResHigh_2_3.dat")
+                .then(_ => _.arrayBuffer())
+                .then(async data => {
+                    // expose to context for debugging purpose (this is disgusting)
+                    let context = Module.GL.createContext(canvas, {
+                        majorVersion: 1
+                    });
+                    Module.GL.makeContextCurrent(context);
+                    /*window.d = data
+
+                    let address = Module.ccall("initBuffer", ["number"], ["number"], [data.byteLength]);
+                    console.log(address, data.byteLength);
+                    Module.HEAP8.set(new Uint8Array(data), address);
+                    console.log(Module.ccall("init", ["boolean"], null));
+                    console.log(Module.ccall("test", ["boolean"]));*/
+
+                    let address = Module.ccall("init", ["number"], ["number"], [data.byteLength]);
+                    Module.HEAPU8.set(new Uint8Array(data), address);
+                    let miiAddress = Module.ccall("init", ["number"], null);
+                    console.log(!miiAddress ? "Failed to start" : "FFL good")
+
+                    let miiData = await fetch("mii_024.ffsd").then(_ => _.arrayBuffer());
+                    console.log(miiData);
+                    Module.HEAPU8.set(new Uint8Array(miiData), miiAddress);
+                    console.log(Module.ccall("mii", ["boolean"]) ? "Successfully set Mii" : "Failed to set Mii.")
+
+                    // concept for loading heap
+                    /*
+                    Module.HEAP8.set(new Uint8Array(data), init(data.byteLength));
+                    let success = init(0);
+                    if (!success)
+                        return false;
+                    let miiAddress = mii(); // this is only callable once
+                    let miiData = []; // 96 bytes of mii data
+                    Module.HEAP8.set(new Uint8Array(miiData), miiAddress);
+                    mii();*/
+                })
+        </script>
+    </body>
+</html>
