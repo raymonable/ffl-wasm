@@ -4,67 +4,17 @@
 
 #include <bindings.hh>
 
-const char* vertexShaderSource =
-    "attribute vec4 vertexPosition;\n"
-    "attribute vec2 uvPosition;\n"
-    "varying highp vec2 uv;\n"
-    "void main(void) {\n"
-    "   gl_Position = vertexPosition;\n"
-    "   uv = uvPosition;\n"
-    "}\n";
-const char* fragmentShaderSource =
-    "precision highp float;\n"
-    "varying highp vec2 uv;\n"
-    "uniform sampler2D tex;\n"
-    "void main(void) {\n"
-    "   gl_FragColor = texture2D(tex, uv);\n"
-    "}\n";
-
 #include <iostream>
 void faceShaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
     // TODO: move shader compilation to init
 
-    unsigned int vert, frag;
     glEnable(GL_BLEND);
 
-    vert = glCreateShader(GL_VERTEX_SHADER);
-    frag = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(vert, 1, &vertexShaderSource, NULL);
-    glShaderSource(frag, 1, &fragmentShaderSource, NULL);
-    glCompileShader(vert);
-    glCompileShader(frag);
-
-    int success;
-    glGetShaderiv(vert, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        char infoLog[512];
-        glGetShaderInfoLog(vert, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FUCK YOU \n" << infoLog << std::endl;
-    }
-
-    glGetShaderiv(frag, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        char infoLog[512];
-        glGetShaderInfoLog(frag, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FUCK YOU \n" << infoLog << std::endl;
-    }
-
-    unsigned int program;
-    program = glCreateProgram();
-    glAttachShader(program, vert);
-    glAttachShader(program, frag);
-    glLinkProgram(program);
-    glUseProgram(program);
-
-    std::cout << "mode " << drawParam->modulateParam.mode << std::endl;
+    std::cout << "mode " << drawParam->modulateParam.mode << " type " << drawParam->modulateParam.type << std::endl;
 
     GLuint textureHandle = (GLuint)drawParam->modulateParam.pTexture2D;
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureHandle);
-    glUniform1i(glGetUniformLocation(program, "tex"), 0);
 
     if (drawParam->modulateParam.type < FFL_MODULATE_TYPE_SHAPE_MAX)
     {
@@ -78,57 +28,42 @@ void faceShaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
 
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if(!success)
-    {
-        char infoLog[512];
-        glGetProgramInfoLog(program, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
+    for (int type = 0; type < FFL_ATTRIBUTE_BUFFER_TYPE_MAX; type++) {
+        const FFLAttributeBuffer* buffer = &drawParam->attributeBufferParam.attributeBuffers[type];
+        void* ptr = buffer->ptr;
 
-    std::cout << "handle " << textureHandle << " "  << std::endl;
+        auto size = static_cast<int>(buffer->size);
+        auto stride = static_cast<int>(buffer->stride);
 
-    if (drawParam->modulateParam.type == FFL_MODULATE_TYPE_FACE_MAKE) {
-        std::cout << "Drawing faceline texture" << std::endl;
-        for (int type = 0; type < FFL_ATTRIBUTE_BUFFER_TYPE_MAX; type++) {
-            const FFLAttributeBuffer* buffer = &drawParam->attributeBufferParam.attributeBuffers[type];
-            void* ptr = buffer->ptr;
+        // TODO: major cleanup on aisle this function please
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
 
-            auto size = static_cast<int>(buffer->size);
-            auto stride = static_cast<int>(buffer->stride);
-
-            // TODO: major cleanup on aisle this function please
-            GLuint vbo;
-            glGenBuffers(1, &vbo);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
-
-            if (ptr != nullptr)
-                std::cout << type << std::endl;
-                switch (type) {
-                    case FFL_ATTRIBUTE_BUFFER_TYPE_POSITION: {
-                        glVertexAttribPointer(glGetAttribLocation(program, "vertexPosition"), 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-                        glEnableVertexAttribArray(glGetAttribLocation(program, "vertexPosition"));
-                        break;
-                    }
-                    case FFL_ATTRIBUTE_BUFFER_TYPE_TEXCOORD: {
-                        glVertexAttribPointer(glGetAttribLocation(program, "uvPosition"), 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
-                        glEnableVertexAttribArray(glGetAttribLocation(program, "uvPosition"));
-                        break;
-                    }
-                    // NOTE: color is needed for eyes and such
-                    default: break;
-                    // We shouldn't be drawing actual Mii heads with this function, so we can completely disregard the other two
+        if (ptr != nullptr)
+            std::cout << type << std::endl;
+            switch (type) {
+                case FFL_ATTRIBUTE_BUFFER_TYPE_POSITION: {
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+                    glEnableVertexAttribArray(0);
+                    break;
                 }
-        };
+                case FFL_ATTRIBUTE_BUFFER_TYPE_TEXCOORD: {
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
+                    glEnableVertexAttribArray(1);
+                    break;
+                }
+                // NOTE: color is needed for eyes and such
+                default: break;
+                // We shouldn't be drawing actual Mii heads with this function, so we can completely disregard the other two
+            }
     };
 
     GLuint indexBufferHandle;
     glGenBuffers(1, &indexBufferHandle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferHandle);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, drawParam->primitiveParam.indexCount * sizeof(unsigned short), drawParam->primitiveParam.pIndexBuffer, GL_STATIC_DRAW);
-
-    std::cout << "a " << drawParam->primitiveParam.indexCount * sizeof(unsigned short) << " " << drawParam->primitiveParam.indexCount << std::endl;
 
     glDrawElements(drawParam->primitiveParam.primitiveType, drawParam->primitiveParam.indexCount, GL_UNSIGNED_SHORT, 0);
 }
@@ -187,7 +122,6 @@ void TextureCallback_Create(void* v, const FFLTextureInfo* pTextureInfo, FFLText
             //free(textureHandle);
             return;
     }
-
     // Upload texture data
     glTexImage2D(
         GL_TEXTURE_2D,
@@ -198,6 +132,7 @@ void TextureCallback_Create(void* v, const FFLTextureInfo* pTextureInfo, FFLText
         0, // Border (must be 0)
         format,
         type,
+        //Hello Lady
         pTextureInfo->imagePtr
     );
 /*
@@ -252,6 +187,7 @@ void* generateTextures(int expression) {
     FFLShaderCallback* pCallback = &gFaceShaderCallback;
     FFLShaderCallback** ppCallback = &pCallback;
 
+    /*
     if (iMiiCharacterModel->facelineRenderTexture.pTexture2D != nullptr) {
         unsigned int texture;
         glViewport(0, 0, 256, 512);
@@ -262,11 +198,27 @@ void* generateTextures(int expression) {
         glClearColor(skinTone.r, skinTone.g, skinTone.b, skinTone.a);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBlendEquation(GL_FUNC_ADD);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
         FFLiDrawFacelineTexture(&iMiiCharacterModel->pTextureTempObject->facelineTexture, reinterpret_cast<const FFLiShaderCallback*>(ppCallback));
-    }
+        // TODO: store to texture
+    }*/
+
+    // face mask
+
+    FFLiMaskTexturesTempObject* pObject = &iMiiCharacterModel->pTextureTempObject->maskTextures;
+    FFLiInvalidatePartsTextures(&pObject->partsTextures);
+
+    glBlendFuncSeparate(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA, GL_SRC_ALPHA, GL_DST_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+
+    FFLiInvalidateRawMask(pObject->pRawMaskDrawParam[0]);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    FFLiDrawRawMask(pObject->pRawMaskDrawParam[0], reinterpret_cast<const FFLiShaderCallback*>(ppCallback));
 
     return nullptr; // in the future, return a pointer that contains pointers for both the faceline, mask and other textures.
 }

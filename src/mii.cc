@@ -28,6 +28,9 @@ void* init(int size) {
 
         FFLInitResGPUStep();
 
+        if (!initializeGL())
+            return nullptr;
+
         gMiiDataBuffer = new Buffer(96);
         return gMiiDataBuffer->get<void*>();
     } else {

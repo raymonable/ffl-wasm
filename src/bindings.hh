@@ -26,6 +26,7 @@ private:
 };
 
 FFLCharModel* getMii();
+bool initializeGL();
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);
