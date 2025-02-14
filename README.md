@@ -10,3 +10,9 @@ This is a wrapper for FFL for WebAssembly, specifically for usage in Mii Creator
 I decided to wipe this README since I keep changing the function names and how they should work.
 
 I will add true documentation never.
+
+## TODO:
+
+ - Add option to bind specific WebGL texture handles to render targets
+ - Add mesh exporting
+ - Profit???
