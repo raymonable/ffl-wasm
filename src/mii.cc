@@ -12,6 +12,7 @@ FFLCharModel* getMii() {
     return gMiiCharModel;
 };
 
+// (global export)
 void* init(int size) {
     if (gFFLDataBuffer != nullptr) {
         FFLResourceDesc resourceDescription;
@@ -22,14 +23,11 @@ void* init(int size) {
 
         if (FFLInitRes(FFL_FONT_REGION_JP_US_EU, &resourceDescription) != FFL_RESULT_OK)
             return nullptr;
-
-        if (!FFLIsAvailable())
+        if (!FFLIsAvailable() || !initializeGL())
             return nullptr;
 
+        initializeDrawCallbacks();
         FFLInitResGPUStep();
-
-        if (!initializeGL())
-            return nullptr;
 
         gMiiDataBuffer = new Buffer(96);
         return gMiiDataBuffer->get<void*>();
@@ -39,6 +37,7 @@ void* init(int size) {
     }
 };
 
+// (global export) call this after updating the mii buffer
 bool mii() {
     if (!gMiiDataBuffer)
         return false;
@@ -50,17 +49,16 @@ bool mii() {
     modelSource.pBuffer = gMiiDataBuffer->get<unsigned char*>();
     modelSource.dataSource = FFL_DATA_SOURCE_STORE_DATA;
 
-    // TODO: expression and resolution should be dynamic
     FFLCharModelDesc modelDescription{};
     modelDescription.resolution = FFL_RESOLUTION_TEX_512;
-    modelDescription.expressionFlag = 1 << FFL_EXPRESSION_NORMAL;
+    modelDescription.expressionFlag = 1 << FFL_EXPRESSION_NORMAL; // TODO: replace this with an "all" flag, dunno how that works :sob:
     modelDescription.modelFlag = FFL_MODEL_FLAG_NORMAL;
     modelDescription.resourceType = FFL_RESOURCE_TYPE_HIGH;
 
     if (FFLInitCharModelCPUStep(gMiiCharModel, &modelSource, &modelDescription) != FFL_RESULT_OK)
         return false;
 
-    // TODO: output mesh
+    // TODO: clean up any leftovers from any previous miis
 
     return true;
 };

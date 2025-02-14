@@ -11,8 +11,8 @@ add_compile_definitions(RIO_DEBUG RIO_GLES RIO_NO_GL_LOADER)
 include_directories(src lib/ffl/include lib/rio/include)
 add_executable(ffl_wasm
         src/mii.cc
-        src/face.cc
         src/gl.cc
+        src/texture.cc
 )
 
 set(FFL_MODE "")

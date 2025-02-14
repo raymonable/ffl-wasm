@@ -26,11 +26,24 @@ private:
 };
 
 FFLCharModel* getMii();
+GLuint getProgram();
+
 bool initializeGL();
+void initializeDrawCallbacks();
+
+struct RenderTextureExport {
+	uint32_t width;
+	uint32_t height;
+	void* data;
+};
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);
 	EMSCRIPTEN_KEEPALIVE bool mii();
 
-	EMSCRIPTEN_KEEPALIVE void* generateTextures(int expression);
+	EMSCRIPTEN_KEEPALIVE void drawFaceTexture(int expression);
+	EMSCRIPTEN_KEEPALIVE void drawFaceline();
+	EMSCRIPTEN_KEEPALIVE void drawXlu();
+
+	EMSCRIPTEN_KEEPALIVE RenderTextureExport* exportTexture(const char* target);
 }

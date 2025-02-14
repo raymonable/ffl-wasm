@@ -7,8 +7,8 @@
 const char* vertexShaderSource =
     "#version 300 es\n"
     "precision highp float;\n"
-    "layout (location=0) in vec4 aVertex;\n"
-    "layout (location=1) in vec2 aUV;\n"
+    "in vec4 aVertex;\n"
+    "in vec2 aUV;\n"
     "out vec2 uv;\n"
     "void main() {\n"
     "   gl_Position = aVertex;\n"
@@ -19,9 +19,30 @@ const char* fragmentShaderSource =
     "precision highp float;\n"
     "in vec2 uv;\n"
     "uniform sampler2D tex;\n"
+    "uniform vec3 addonR;\n"
+    "uniform vec3 addonG;\n"
+    "uniform vec3 addonB;\n"
+    "uniform int mode;\n"
     "out vec4 fragColor;"
     "void main() {\n"
-    "   fragColor = texture(tex, uv);\n"
+    "   vec4 color = texture(tex, uv);"
+    "   switch (mode) {"
+    "   case 1:"
+    "   case 2:"
+    "       fragColor = vec4("
+    "           (addonR * color.r) +"
+    "           (addonG * color.g) +"
+    "           (addonB * color.b),"
+    "           color.a"
+    "       );"
+    "       break;"
+    "   case 3:"
+    "       fragColor = vec4(color.r * addonR, color.r);"
+    "       break;"
+    "   case 4:"
+    "       fragColor = vec4(color.g * addonR, color.r);"
+    "       break;"
+    "   };\n"
     "}\n";
 
 GLuint compileShader(GLenum shaderType, const char* shaderSource) {
@@ -57,6 +78,11 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
     return program;
 }
 
+GLuint program;
+GLuint getProgram() {
+    return program;
+}
+
 bool initializeGL() {
     auto vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     auto fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -64,8 +90,13 @@ bool initializeGL() {
     if (!vertexShader || !fragmentShader)
         return false;
 
-    auto program = createProgram(vertexShader, fragmentShader);
-    glUseProgram(program); // We can only have one program.
+    program = createProgram(vertexShader, fragmentShader);
+    glUseProgram(program); // There's only one program available, let's make the best out of it!
+
+    glBindAttribLocation(program, 0, "aVertex");
+    glBindAttribLocation(program, 1, "aUV");
+
+    glEnable(GL_BLEND);
 
     return true;
 };
