@@ -13,6 +13,7 @@ add_executable(ffl_wasm
         src/mii.cc
         src/gl.cc
         src/texture.cc
+        src/mesh.cc
 )
 
 set(FFL_MODE "")

@@ -28,6 +28,8 @@ const char* fragmentShaderSource =
     "   vec4 color = texture(tex, uv);"
     "   switch (mode) {"
     "   case 1:"
+    "       fragColor = color;"
+    "       break;"
     "   case 2:"
     "       fragColor = vec4("
     "           (addonR * color.r) +"

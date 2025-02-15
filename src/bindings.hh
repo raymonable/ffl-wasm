@@ -27,6 +27,7 @@ private:
 
 FFLCharModel* getMii();
 GLuint getProgram();
+void generateMiiMeshes();
 
 bool initializeGL();
 void initializeDrawCallbacks();
@@ -35,6 +36,18 @@ struct RenderTextureExport {
 	uint32_t width;
 	uint32_t height;
 	void* data;
+};
+struct MeshData {
+	uint32_t vertexCount;
+	uint32_t indexCount;
+
+	void* indexData;
+
+	void* positionData;
+	void* uvData;
+	void* normalData;
+	void* tangentData;
+	void* colorData;
 };
 
 extern "C" {
@@ -45,5 +58,8 @@ extern "C" {
 	EMSCRIPTEN_KEEPALIVE void drawFaceline();
 	EMSCRIPTEN_KEEPALIVE void drawXlu();
 
+	EMSCRIPTEN_KEEPALIVE MeshData* getMesh(const char* object);
+
+	EMSCRIPTEN_KEEPALIVE int getRenderTextureHandle(const char* target);
 	EMSCRIPTEN_KEEPALIVE RenderTextureExport* exportTexture(const char* target);
 }

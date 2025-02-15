@@ -62,7 +62,9 @@ void shaderCallback(void* pObj, const FFLDrawParam* drawParam) {
 
     updateColors(drawParam);
 
+#ifdef RIO_DEBUG
     printf("Mode: %s. Type: %s.\n", std::to_string(drawParam->modulateParam.mode).c_str(), std::to_string(drawParam->modulateParam.type).c_str());
+#endif
 
     const auto textureHandle = reinterpret_cast<GLuint>(drawParam->modulateParam.pTexture2D);
     glActiveTexture(GL_TEXTURE0);
@@ -128,6 +130,10 @@ void textureCallback(void* v, const FFLTextureInfo* pTextureInfo, FFLTexture* pT
     *(void**)pTexture = (void*)handle;
 };
 
+void textureDeleteCallback() {
+
+}
+
 // (global)
 void initializeDrawCallbacks() {
     fflTextureCallback.useOriginalTileMode = false;
@@ -148,15 +154,14 @@ struct RenderTexture {
 std::map<std::string, RenderTexture> renderTextures{};
 
 RenderTextureExport* renderTextureExport = nullptr;
+// TODO: switch this to use the custom Buffer class? tbd
 void* currentTextureExportData = nullptr;
 
 // (global export)
 RenderTextureExport* exportTexture(const char* target) {
     if (currentTextureExportData != nullptr)
         free(currentTextureExportData);
-    if (renderTextureExport != nullptr)
-        delete renderTextureExport;
-    // TODO: add non-render textures too (such as glasses, nose, etc. etc.)
+    free(renderTextureExport);
     if (renderTextures.find(target) != renderTextures.end()) {
         auto renderTexture = renderTextures[target];
         glBindFramebuffer(GL_FRAMEBUFFER, renderTexture.framebufferHandle);
@@ -197,12 +202,15 @@ void bindRenderTexture(const std::string& target, int width, int height) {
         renderTextures[target].width = width;
         renderTextures[target].height = height;
 
-        printf("Framebuffer: %s\nTexture: %s\nName: %s\n", std::to_string(renderTextures[target].framebufferHandle).c_str(), std::to_string(renderTextures[target].textureHandle).c_str(), target.c_str());
-
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderTextures[target].textureHandle, 0);
     };
     bindRenderTexture(target);
 }
+int getRenderTextureHandle(const char* target) {
+    if (renderTextures.find(target) != renderTextures.end())
+        return static_cast<int>(renderTextures[target].textureHandle);
+    return 0;
+};
 
 // (global export)
 void drawFaceTexture(int expression) {
@@ -210,7 +218,7 @@ void drawFaceTexture(int expression) {
     const auto iMiiCharacterModel = reinterpret_cast<FFLiCharModel*>(getMii());
     const int resolution = iMiiCharacterModel->charModelDesc.resolution;
 
-    bindRenderTexture("FACE_MASK", resolution, resolution);
+    bindRenderTexture("FACEMASK", resolution, resolution);
 
     FFLShaderCallback* pCallback = &fflShaderCallback;
     FFLShaderCallback** ppCallback = &pCallback;
@@ -218,7 +226,6 @@ void drawFaceTexture(int expression) {
     FFLiMaskTexturesTempObject* pObject = &iMiiCharacterModel->pTextureTempObject->maskTextures;
     FFLiInvalidatePartsTextures(&pObject->partsTextures);
 
-    glViewport(0, 0, resolution, resolution);
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glBlendEquation(GL_FUNC_ADD);
 
@@ -238,7 +245,7 @@ void drawFaceline() {
     const auto iMiiCharacterModel = reinterpret_cast<FFLiCharModel*>(getMii());
     const int resolution = iMiiCharacterModel->charModelDesc.resolution;
 
-    bindRenderTexture("FACE_LINE", resolution / 2, resolution);
+    bindRenderTexture("FACELINE", resolution / 2, resolution);
 
     auto skinTone = FFLGetFacelineColor(iMiiCharacterModel->charInfo.parts.facelineColor);
 
@@ -249,8 +256,6 @@ void drawFaceline() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (iMiiCharacterModel->facelineRenderTexture.pTexture2D != nullptr) {
-        glViewport(0, 0, resolution / 2, resolution);
-
         glBlendEquation(GL_FUNC_ADD);
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
@@ -311,16 +316,19 @@ void drawXlu() {
     const auto iMiiCharacterModel = reinterpret_cast<FFLiCharModel*>(getMii());
     const int resolution = iMiiCharacterModel->charModelDesc.resolution;
 
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+
     // Glasses
 
-    bindRenderTexture("XLU_GLASS", resolution / 2, resolution / 2);
+    bindRenderTexture("GLASS", resolution / 2, resolution / 2);
     auto glassParam = FFLiGetDrawParamXluGlassFromCharModel(iMiiCharacterModel);
     if (glassParam->modulateParam.pTexture2D != nullptr)
         drawXluPart(glassParam);
 
     // Nose
 
-    bindRenderTexture("XLU_NOSE_LINE", resolution / 2, resolution / 2);
+    bindRenderTexture("NOSELINE", resolution / 2, resolution / 2);
     auto noseParam = FFLiGetDrawParamXluNoseLineFromCharModel(iMiiCharacterModel);
     // I'm concerned if there's no nose
     if (noseParam->modulateParam.pTexture2D != nullptr)

@@ -12,7 +12,7 @@
     <body>
         <script src="ffl_wasm.js"></script>
         <canvas id="canvas" width="512" height="512"></canvas>
-        <canvas id="canvas2" width="512" height="512"></canvas>
+        <canvas id="canvas2" width="256" height="512"></canvas>
 
         <script type="module">
             import * as THREE from 'three';
@@ -32,15 +32,31 @@
             const canvas2 = document.querySelector("#canvas2")
             const ctx2d = canvas2.getContext("2d");
 
-            function copy(src)  {
-                return new Uint8Array(src);
+            // copied from chatgpt lmao
+            function importWebGLTexture(gl, textureId) {
+                // Create a dummy WebGLTexture object
+                const tempTexture = gl.createTexture();
+
+                // Overwrite its internal ID with the imported one
+                const ext = gl.getExtension("OES_texture_float"); // Ensures WebGL extensions match
+                const oldBind = gl.getParameter(gl.TEXTURE_BINDING_2D); // Store previous binding
+
+                gl.bindTexture(gl.TEXTURE_2D, tempTexture);
+
+                // Use WebGL's internal mechanisms to associate the texture ID
+                Object.defineProperty(tempTexture, '_webglTexture', { value: textureId });
+
+                // Restore previous binding
+                gl.bindTexture(gl.TEXTURE_2D, oldBind);
+
+                return tempTexture;
             }
 
             fetch("AFLResHigh_2_3.dat")
                 .then(_ => _.arrayBuffer())
                 .then(async data => {
                     // expose to context for debugging purpose (this is disgusting)
-                    let context = Module.GL.createContext(canvas, {
+                    let context = Module.GL.registerContext(renderer.getContext(), {
                         majorVersion: 1
                     });
                     Module.GL.makeContextCurrent(context);
@@ -57,23 +73,23 @@
                     let miiAddress = Module.ccall("init", ["number"], null);
                     console.log(!miiAddress ? "Failed to start" : "FFL good")
 
-                    let miiData = await fetch("mii_024.ffsd").then(_ => _.arrayBuffer())//[0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
+                    let miiData = [0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
                     console.log(miiData);
                     Module.HEAPU8.set(new Uint8Array(miiData), miiAddress);
-                    console.log(Module.ccall("mii", ["boolean"]) ? "Successfully set Mii" : "Failed to set Mii.");
+                    console.log(Module.ccall("mii", "boolean") ? "Successfully set Mii" : "Failed to set Mii.");
 
                     Module.ccall("drawFaceTexture", null, ["number"], [0]);
                     Module.ccall("drawFaceline");
                     Module.ccall("drawXlu");
 
-                    let exportData = Module.ccall("exportTexture", ["number"], ["string"], ["XLU_NOSE_LINE"]);
+                    let exportData = Module.ccall("exportTexture", ["number"], ["string"], ["FACE_LINE"]);
                     console.log(exportData, Module.HEAPU32[exportData / 4]);
 
                     console.log(Module.HEAPU32[(exportData + 4) / 4]);
 
                     let width = Module.HEAPU32[exportData / 4]; // offset 0
                     let height = Module.HEAPU32[(exportData + 4) / 4]; // offset 4 (1 32-bit unsigned integer)
-                    let pixelData = copy(Module.HEAPU8.slice(Module.HEAPU32[(exportData + 8) / 4], Module.HEAPU32[(exportData + 8) / 4] + (width * height * 4)));  // offset 8 (2 32-bit unsigned integer)
+                    let pixelData = Module.HEAPU8.slice(Module.HEAPU32[(exportData + 8) / 4], Module.HEAPU32[(exportData + 8) / 4] + (width * height * 4));  // offset 8 (2 32-bit unsigned integer)
                     console.log(pixelData);
 
                     let canvasPixelData = ctx2d.getImageData(0, 0, width, height);
@@ -81,14 +97,20 @@
                     canvasPixelData.data.set(pixelData, 0);
                     ctx2d.putImageData(canvasPixelData, 0, 0);
 
-                    const texture = new THREE.DataTexture(pixelData, width, height);
-                    texture.needsUpdate = true;
-                    texture.flipY = true;
+                    const texture = new THREE.Texture();
                     const geometry = new THREE.BoxGeometry( 1, 1, 1 );
                     const material = new THREE.MeshBasicMaterial({
                         map: texture,
                     })
+
                     const cube = new THREE.Mesh( geometry, material );
+
+                    let renderTextureProperties = renderer.properties.get(texture); // webglTexture is null?
+                    console.log(renderTextureProperties, renderTextureProperties.__webglTexture)
+
+                    console.log(Module.ccall("getRenderTextureHandle", "int", ["string"], ["XLU_GLASS"]));
+                    renderTextureProperties.__webglTexture = importWebGLTexture(renderer.getContext(), Module.ccall("getRenderTextureHandle", "int", ["string"], ["XLU_GLASS"]));
+                    texture.needsUpdate = false;
 
                     scene.add( cube );
                     function animate() {
