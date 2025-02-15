@@ -7,6 +7,7 @@
 FFLModulateType meshType;
 std::map<FFLAttributeBufferType, Buffer*> meshBufferCache;
 Buffer* indexBuffer = nullptr;
+RGB rgb;
 MeshData* meshData = nullptr;
 
 void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
@@ -14,11 +15,19 @@ void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
     //      only 64 megabytes of heap
     if (meshType != drawParam->modulateParam.type) return;
 
+    rgb = {
+        .r = drawParam->modulateParam.pColorR->r,
+        .g = drawParam->modulateParam.pColorR->g,
+        .b = drawParam->modulateParam.pColorR->b,
+    };
+
     for (int type = 0; type < FFL_ATTRIBUTE_BUFFER_TYPE_MAX; type++) {
         const FFLAttributeBuffer* buffer = &drawParam->attributeBufferParam.attributeBuffers[type];
-        const void* ptr = buffer->ptr;
+        void* ptr = buffer->ptr;
 
+        const auto stride = static_cast<int>(buffer->stride);
         const auto size = static_cast<int>(buffer->size);
+        printf("Stride: %s\nSize: %s\nBuffer Type:%s\n", std::to_string(stride).c_str(), std::to_string(size).c_str(), std::to_string(type).c_str());
         if (ptr != nullptr) {
             auto typeCast = static_cast<FFLAttributeBufferType>(type);
             if (meshBufferCache.find(typeCast) != meshBufferCache.end())
@@ -28,9 +37,17 @@ void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
                 meshBufferCache[typeCast]->get<void*>(),
                 ptr, size
             );
+
+            if (type == FFL_ATTRIBUTE_BUFFER_TYPE_POSITION) {
+                for (size_t index = 0; index < 25; index++) {
+                    printf("Data!! %s: %s\n", std::to_string(index).c_str(), std::to_string(*reinterpret_cast<float*>(reinterpret_cast<unsigned char*>(ptr) + (stride * index))).c_str());
+                }
+            }
         }
     };
 
+    if (indexBuffer != nullptr)
+        delete indexBuffer;
     indexBuffer = new Buffer(static_cast<int>(drawParam->primitiveParam.indexCount));
     memcpy(
         indexBuffer->get<void*>(),
@@ -47,44 +64,33 @@ MeshData* getMesh(const char* object) {
     FFLSetShaderCallback(&shaderCallback);
 
     const auto miiCharacterModel = getMii();
+    const std::string objectName = object;
 
-    switch (std::string(object)) {
-        case "FACELINE":
-            meshType = FFL_MODULATE_TYPE_SHAPE_FACELINE; break;
-        case "BEARD":
-            meshType = FFL_MODULATE_TYPE_SHAPE_BEARD; break;
-        case "NOSE":
-            meshType = FFL_MODULATE_TYPE_SHAPE_NOSE; break;
-        case "FOREHEAD":
-            meshType = FFL_MODULATE_TYPE_SHAPE_FOREHEAD; break;
-        case "HAIR":
-            meshType = FFL_MODULATE_TYPE_SHAPE_HAIR; break;
-        case "CAP":
-            meshType = FFL_MODULATE_TYPE_SHAPE_CAP; break;
-        case "MASK":
-            meshType = FFL_MODULATE_TYPE_SHAPE_MASK; break;
-        case "NOSELINE":
-            meshType = FFL_MODULATE_TYPE_SHAPE_NOSELINE; break;
-        case "GLASS":
-            meshType = FFL_MODULATE_TYPE_SHAPE_GLASS; break;
-        default: break;
-    };
+    // I might be racist now. Specifically because of this. (I am joking)
+    if (objectName == "FACELINE") meshType = FFL_MODULATE_TYPE_SHAPE_FACELINE;
+    if (objectName == "BEARD") meshType = FFL_MODULATE_TYPE_SHAPE_BEARD;
+    if (objectName == "NOSE") meshType = FFL_MODULATE_TYPE_SHAPE_NOSE;
+    if (objectName == "FOREHEAD") meshType = FFL_MODULATE_TYPE_SHAPE_FOREHEAD;
+    if (objectName == "HAIR") meshType = FFL_MODULATE_TYPE_SHAPE_HAIR;
+    if (objectName == "CAP") meshType = FFL_MODULATE_TYPE_SHAPE_CAP;
+    if (objectName == "NOSELINE") meshType = FFL_MODULATE_TYPE_SHAPE_NOSELINE;
+    if (objectName == "GLASS") meshType = FFL_MODULATE_TYPE_SHAPE_GLASS;
 
     // Honestly, why are these separate?
     FFLDrawOpa(miiCharacterModel);
     FFLDrawXlu(miiCharacterModel);
 
     meshData = new MeshData{
-        .vertexCount = static_cast<uint32_t>(meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION]->size / 3 / sizeof(float)),
-        .indexCount = static_cast<uint32_t>(indexBuffer->size / sizeof(uint32_t)),
+        .vertexCount = static_cast<uint32_t>(meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION]->size / 4 / sizeof(GLfloat)),
+        .indexCount = static_cast<uint32_t>(indexBuffer->size / sizeof(GLuint)),
 
+        .rgb = rgb,
         .indexData = indexBuffer->get<void*>(),
 
         .positionData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION]->get<void*>(),
         .uvData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_TEXCOORD]->get<void*>(),
         .normalData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_NORMAL]->get<void*>(),
         .tangentData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_TANGENT]->get<void*>(),
-        .colorData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_COLOR]->get<void*>(),
     };
     return meshData;
 };

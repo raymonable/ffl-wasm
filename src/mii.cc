@@ -58,7 +58,5 @@ bool mii() {
     if (FFLInitCharModelCPUStep(gMiiCharModel, &modelSource, &modelDescription) != FFL_RESULT_OK)
         return false;
 
-    generateMiiMeshes();
-
     return true;
 };
