@@ -60,7 +60,7 @@ struct MeshData {
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);
-	EMSCRIPTEN_KEEPALIVE bool mii();
+	EMSCRIPTEN_KEEPALIVE bool mii(bool);
 
 	EMSCRIPTEN_KEEPALIVE void drawFaceTexture(int expression);
 	EMSCRIPTEN_KEEPALIVE void drawFaceline();

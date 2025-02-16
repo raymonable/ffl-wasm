@@ -86,7 +86,8 @@ MeshData* getMesh(const char* object) {
     if (objectName == "CAP") meshType = FFL_MODULATE_TYPE_SHAPE_CAP;
     if (objectName == "NOSELINE") meshType = FFL_MODULATE_TYPE_SHAPE_NOSELINE;
     if (objectName == "GLASS") meshType = FFL_MODULATE_TYPE_SHAPE_GLASS;
-
+    if (objectName == "MASK") meshType = FFL_MODULATE_TYPE_SHAPE_MASK;
+    
     // Honestly, why are these separate?
     FFLDrawOpa(miiCharacterModel);
     FFLDrawXlu(miiCharacterModel);

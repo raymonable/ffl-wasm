@@ -11,7 +11,7 @@
     </head>
     <body>
         <script src="ffl_wasm.js"></script>
-        <canvas id="canvas2" width="256" height="512"></canvas>
+        <canvas id="canvas2" width="512" height="512"></canvas>
 
         <script type="module">
             import * as THREE from 'three';
@@ -59,22 +59,22 @@
                     // Start up FFL (store miiAddress)
                     let address = Module.ccall("init", ["number"], ["number"], [data.byteLength]);
                     Module.HEAPU8.set(new Uint8Array(data), address);
-                    let miiAddress = Module.ccall("init", ["number"], null);
+                    let miiAddress = Module.ccall("init", ["number"], ["number"], [512]); // resolution
                     console.log(!miiAddress ? "Failed to start" : "FFL good")
 
                     // Set Mii
-                    let miiData = [0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
+                    let miiData = await fetch("mii_024.ffsd").then(_ => _.arrayBuffer())//[0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
                     Module.HEAPU8.set(new Uint8Array(miiData), miiAddress);
-                    Module.ccall("mii", "boolean");
+                    Module.ccall("mii", "boolean", ["boolean"], [true]); // true for all expressions
 
                     // Drawing textures (call each of these)
-                    Module.ccall("drawFaceTexture", null, ["number"], [0]);
+                    Module.ccall("drawFaceTexture", null, ["number"], [0]); // 0 is expression
                     Module.ccall("drawFaceline");
                     Module.ccall("drawXlu");
 
                     // Exporting texture data to RGBA (I will abstract this sooner or later)
                     // NOTE: There is NO validation for textures like this. Typically it'll say something like "ran out of memory". This means your texture name is invalid.
-                    let exportData = Module.ccall("exportTexture", ["number"], ["string"], ["FACELINE"]);
+                    let exportData = Module.ccall("exportTexture", ["number"], ["string"], ["MASK"]);
                     let width = Module.HEAPU32[exportData / 4]; // offset 0
                     let height = Module.HEAPU32[(exportData + 4) / 4]; // offset 4 (1 32-bit unsigned integer)
                     let pixelData = Module.HEAPU8.slice(Module.HEAPU32[(exportData + 8) / 4], Module.HEAPU32[(exportData + 8) / 4] + (width * height * 4));  // offset 8 (2 32-bit unsigned integer)
@@ -86,7 +86,7 @@
 
                     // Mesh data
 
-                    let hairMesh = copyMeshData(Module.ccall("getMesh", "number", ["string"], ["HAIR"]));
+                    let hairMesh = copyMeshData(Module.ccall("getMesh", "number", ["string"], ["MASK"]));
 
                     const scene = new THREE.Scene();
                     const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -98,22 +98,23 @@
 
                     const geometry = new THREE.BufferGeometry();
                     geometry.setAttribute('position', new THREE.BufferAttribute(hairMesh.positionData, 4));
+                    geometry.setAttribute('uv', new THREE.BufferAttribute(hairMesh.texCoordData, 2));
                     geometry.setIndex(Array.from(hairMesh.indexData));
 
-                    const material = new THREE.MeshBasicMaterial( { color: rgbToHex(
-                        hairMesh.color.r,
-                        hairMesh.color.g,
-                        hairMesh.color.b
-                    ) } );
+                    const texture = new THREE.DataTexture( pixelData, width, height );
+                    texture.needsUpdate = true;
+                    texture.wrapS = THREE.RepeatWrapping; // Required for FACELINE
+
+                    const material = new THREE.MeshBasicMaterial( { map: texture, transparent: true } );
                     const cube = new THREE.Mesh( geometry, material );
                     scene.add( cube );
+                    scene.background = new THREE.Color( 0xff0000 );
 
-                    camera.position.z = 200;
+                    camera.position.z = 75;
 
                     function animate() {
 
-                        cube.rotation.x += 0.01;
-                        cube.rotation.y += 0.01;
+
 
                         renderer.render( scene, camera );
 

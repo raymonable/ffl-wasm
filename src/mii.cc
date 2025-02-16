@@ -11,6 +11,7 @@ FFLCharModel* gMiiCharModel;
 FFLCharModel* getMii() {
     return gMiiCharModel;
 };
+auto fflResolution = FFL_RESOLUTION_TEX_512;
 
 // (global export)
 void* init(int size) {
@@ -29,6 +30,24 @@ void* init(int size) {
         initializeDrawCallbacks();
         FFLInitResGPUStep();
 
+        if (size != 0)
+            // Am I stupid? Does a function to cast the integer to an enum already exist? I really hope so, honestly
+            switch (size) {
+                case 128:
+                    fflResolution = FFL_RESOLUTION_TEX_128; break;
+                case 192:
+                    fflResolution = FFL_RESOLUTION_TEX_192; break;
+                case 256:
+                    fflResolution = FFL_RESOLUTION_TEX_256; break;
+                case 512:
+                    fflResolution = FFL_RESOLUTION_TEX_512; break;
+                case 768:
+                    fflResolution = FFL_RESOLUTION_TEX_768; break;
+                case 1024:
+                    fflResolution = FFL_RESOLUTION_TEX_1024; break;
+                default: break;
+            }
+
         gMiiDataBuffer = new Buffer(96);
         return gMiiDataBuffer->get<void*>();
     } else {
@@ -38,7 +57,7 @@ void* init(int size) {
 };
 
 // (global export) call this after updating the mii buffer
-bool mii() {
+bool mii(bool allExpressions) {
     if (!gMiiDataBuffer)
         return false;
     if (!gMiiCharModel)
@@ -50,10 +69,19 @@ bool mii() {
     modelSource.dataSource = FFL_DATA_SOURCE_STORE_DATA;
 
     FFLCharModelDesc modelDescription{};
-    modelDescription.resolution = FFL_RESOLUTION_TEX_512;
-    modelDescription.expressionFlag = 1 << FFL_EXPRESSION_NORMAL; // TODO: replace this with an "all" flag, dunno how that works :sob:
+    modelDescription.resolution = fflResolution;
     modelDescription.modelFlag = FFL_MODEL_FLAG_NORMAL;
     modelDescription.resourceType = FFL_RESOURCE_TYPE_HIGH;
+
+    if (allExpressions) {
+        for (uint32_t index = 0; index < FFL_EXPRESSION_MAX; index++)
+            FFLSetExpressionFlagIndex(&modelDescription.allExpressionFlag, index, true);
+    } else
+        modelDescription.expressionFlag =
+              1 << FFL_EXPRESSION_NORMAL
+            | 1 << FFL_EXPRESSION_BLINK
+            | 1 << FFL_EXPRESSION_SMILE
+            | 1 << FFL_EXPRESSION_HAPPY;
 
     if (FFLInitCharModelCPUStep(gMiiCharModel, &modelSource, &modelDescription) != FFL_RESULT_OK)
         return false;

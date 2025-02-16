@@ -218,7 +218,7 @@ void drawFaceTexture(int expression) {
     const auto iMiiCharacterModel = reinterpret_cast<FFLiCharModel*>(getMii());
     const int resolution = iMiiCharacterModel->charModelDesc.resolution;
 
-    bindRenderTexture("FACEMASK", resolution, resolution);
+    bindRenderTexture("MASK", resolution, resolution);
 
     FFLShaderCallback* pCallback = &fflShaderCallback;
     FFLShaderCallback** ppCallback = &pCallback;
