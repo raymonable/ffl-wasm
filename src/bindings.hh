@@ -32,32 +32,31 @@ void generateMiiMeshes();
 bool initializeGL();
 void initializeDrawCallbacks();
 
-__attribute__((packed))
 struct RenderTextureExport {
 	uint32_t width;
 	uint32_t height;
 	void* data;
 };
 // I considered using RIO's Color4f but I figured this would be the easiest to read from HEAP
-__attribute__((packed))
 struct RGB {
 	float r;
 	float g;
 	float b;
 };
-__attribute__((packed))
+#pragma pack(1)
 struct MeshData {
 	uint32_t vertexCount;
 	uint32_t indexCount;
-
 	RGB rgb;
-	void* indexData;
 
-	void* positionData;
-	void* uvData;
-	void* normalData;
-	void* tangentData;
+	unsigned char* positionData;
+	unsigned char* texCoordData;
+	unsigned char* normalData;
+	unsigned char* tangentData;
+
+	unsigned char* indexData;
 };
+#pragma pack()
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);

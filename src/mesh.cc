@@ -5,9 +5,6 @@
 #include <bindings.hh>
 
 FFLModulateType meshType;
-std::map<FFLAttributeBufferType, Buffer*> meshBufferCache;
-Buffer* indexBuffer = nullptr;
-RGB rgb;
 MeshData* meshData = nullptr;
 
 void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
@@ -15,10 +12,12 @@ void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
     //      only 64 megabytes of heap
     if (meshType != drawParam->modulateParam.type) return;
 
-    rgb = {
-        .r = drawParam->modulateParam.pColorR->r,
-        .g = drawParam->modulateParam.pColorR->g,
-        .b = drawParam->modulateParam.pColorR->b,
+    meshData = new MeshData{
+        .rgb = {
+            .r = drawParam->modulateParam.pColorR->r,
+            .g = drawParam->modulateParam.pColorR->g,
+            .b = drawParam->modulateParam.pColorR->b,
+        }
     };
 
     for (int type = 0; type < FFL_ATTRIBUTE_BUFFER_TYPE_MAX; type++) {
@@ -27,38 +26,50 @@ void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
 
         const auto stride = static_cast<int>(buffer->stride);
         const auto size = static_cast<int>(buffer->size);
+
+#ifdef RIO_DEBUG
         printf("Stride: %s\nSize: %s\nBuffer Type:%s\n", std::to_string(stride).c_str(), std::to_string(size).c_str(), std::to_string(type).c_str());
-        if (ptr != nullptr) {
-            auto typeCast = static_cast<FFLAttributeBufferType>(type);
-            if (meshBufferCache.find(typeCast) != meshBufferCache.end())
-                delete meshBufferCache[typeCast]; // Remove existing buffer
-            meshBufferCache[typeCast] = new Buffer(size); // ... and create a new one! :3
-            memcpy(
-                meshBufferCache[typeCast]->get<void*>(),
-                ptr, size
-            );
+#endif
 
-            if (type == FFL_ATTRIBUTE_BUFFER_TYPE_POSITION) {
-                for (size_t index = 0; index < 25; index++) {
-                    printf("Data!! %s: %s\n", std::to_string(index).c_str(), std::to_string(*reinterpret_cast<float*>(reinterpret_cast<unsigned char*>(ptr) + (stride * index))).c_str());
-                }
-            }
+        auto typeCast = static_cast<FFLAttributeBufferType>(type);
+        unsigned char** bufferPtr = nullptr;
+        switch (typeCast) {
+            case FFL_ATTRIBUTE_BUFFER_TYPE_POSITION:
+                bufferPtr = &meshData->positionData; break;
+            case FFL_ATTRIBUTE_BUFFER_TYPE_NORMAL:
+                bufferPtr = &meshData->normalData; break;
+            case FFL_ATTRIBUTE_BUFFER_TYPE_TEXCOORD:
+                bufferPtr = &meshData->texCoordData; break;
+            case FFL_ATTRIBUTE_BUFFER_TYPE_TANGENT:
+                bufferPtr = &meshData->tangentData; break;
+            default: break;
         }
-    };
+        if (bufferPtr != nullptr)
+            if (ptr != nullptr) {
+                *bufferPtr = reinterpret_cast<unsigned char*>(malloc(size));
+                memcpy(*bufferPtr, ptr, size);
+            } else
+                *bufferPtr = nullptr;
+    }
 
-    if (indexBuffer != nullptr)
-        delete indexBuffer;
-    indexBuffer = new Buffer(static_cast<int>(drawParam->primitiveParam.indexCount));
-    memcpy(
-        indexBuffer->get<void*>(),
-        drawParam->primitiveParam.pIndexBuffer, drawParam->primitiveParam.indexCount * sizeof(uint32_t)
-    );
+    meshData->vertexCount = drawParam->attributeBufferParam.attributeBuffers[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION].size / sizeof(float) / 4;
+    meshData->indexCount = drawParam->primitiveParam.indexCount / sizeof(unsigned short);
+
+    meshData->indexData = reinterpret_cast<unsigned char*>(malloc(meshData->indexCount * sizeof(unsigned short) * 2));
+    memcpy(meshData->indexData, drawParam->primitiveParam.pIndexBuffer, meshData->indexCount * sizeof(unsigned short) * 2);
 };
 FFLShaderCallback shaderCallback;
 
 MeshData* getMesh(const char* object) {
-    if (meshData != nullptr)
+    if (meshData != nullptr) {
+        free(meshData->indexData);
+        free(meshData->normalData);
+        free(meshData->tangentData);
+        free(meshData->texCoordData);
+        free(meshData->positionData);
+
         free(meshData);
+    };
 
     shaderCallback.pDrawFunc = shaderDrawCallback;
     FFLSetShaderCallback(&shaderCallback);
@@ -80,18 +91,6 @@ MeshData* getMesh(const char* object) {
     FFLDrawOpa(miiCharacterModel);
     FFLDrawXlu(miiCharacterModel);
 
-    meshData = new MeshData{
-        .vertexCount = static_cast<uint32_t>(meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION]->size / 4 / sizeof(GLfloat)),
-        .indexCount = static_cast<uint32_t>(indexBuffer->size / sizeof(GLuint)),
-
-        .rgb = rgb,
-        .indexData = indexBuffer->get<void*>(),
-
-        .positionData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_POSITION]->get<void*>(),
-        .uvData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_TEXCOORD]->get<void*>(),
-        .normalData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_NORMAL]->get<void*>(),
-        .tangentData = meshBufferCache[FFL_ATTRIBUTE_BUFFER_TYPE_TANGENT]->get<void*>(),
-    };
     return meshData;
 };
 

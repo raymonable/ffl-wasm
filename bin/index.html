@@ -11,63 +11,38 @@
     </head>
     <body>
         <script src="ffl_wasm.js"></script>
-        <canvas id="canvas" width="512" height="512"></canvas>
         <canvas id="canvas2" width="256" height="512"></canvas>
 
         <script type="module">
             import * as THREE from 'three';
 
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-
-            const renderer = new THREE.WebGLRenderer();
-            renderer.setClearColor( 0xafafaf, 1 );
-            renderer.setSize( window.innerWidth, window.innerHeight );
-            document.body.appendChild( renderer.domElement );
-
-            camera.position.z = 2;
-
-            const canvas = document.querySelector("#canvas");
-
             const canvas2 = document.querySelector("#canvas2")
             const ctx2d = canvas2.getContext("2d");
 
-            /*
-            struct MeshData {
-                uint32_t vertexCount;
-                uint32_t indexCount;
-
-                RGB rgb
-                void* indexData;
-
-                void* positionData;
-                void* uvData;
-                void* normalData;
-                void* tangentData;
-                void* colorData;
-            };
-             */
-            function getOffsetData(stride, count, data) {
-                let length = stride * count * 4;
-                data.offset += length;
-                return length;
+            // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+            function rgbToHex(r, g, b) {
+                return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
             }
+
             function copyMeshData(pointer) {
                 let vertexCount = Module.HEAPU32[pointer / 4];
                 let indexCount = Module.HEAPU32[(pointer / 4) + 1];
 
-                console.log(pointer)
                 let data = {
                     color: {
-                        r: Module.HEAPF32[(pointer / 4) + 2],
-                        g: Module.HEAPF32[(pointer / 4) + 3],
-                        b: Module.HEAPF32[(pointer / 4) + 4]
+                        r: Module.HEAPF32[(pointer / 4) + 2] * 255,
+                        g: Module.HEAPF32[(pointer / 4) + 3] * 255,
+                        b: Module.HEAPF32[(pointer / 4) + 4] * 255
                     },
-                    offset: pointer + (4 * 4),
+                    offset: (pointer / 4) + 5,
                     vertexCount, indexCount
                 }
-                // TODO: figure out how the fuck we're going to read this
-                data.indexData = Module.HEAPU32.slice(Module.HEAPU32[data.offset], Module.HEAPU32[data.offset] + getOffsetData(4, data.indexCount, data));
+                data.positionData = Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 4)); data.offset++;
+                data.texCoordData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 2)) : new Float32Array(0); data.offset++;
+                data.normalData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 3)) : new Float32Array(0); data.offset++;
+                data.tangentData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 3)) : new Float32Array(0); data.offset++;
+
+                data.indexData = Module.HEAPU16.slice(Module.HEAPU32[data.offset] / 2, (Module.HEAPU32[data.offset] / 2 + (indexCount * 2))); data.offset++;
 
                 return data;
             }
@@ -76,7 +51,7 @@
                 .then(_ => _.arrayBuffer())
                 .then(async data => {
                     // expose to context for debugging purpose (this is disgusting)
-                    let context = Module.GL.registerContext(renderer.getContext(), {
+                    let context = Module.GL.createContext(document.createElement("canvas"), {
                         majorVersion: 1
                     });
                     Module.GL.makeContextCurrent(context);
@@ -112,7 +87,37 @@
                     // Mesh data
 
                     let hairMesh = copyMeshData(Module.ccall("getMesh", "number", ["string"], ["HAIR"]));
-                    console.log(hairMesh);
+
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+                    const renderer = new THREE.WebGLRenderer();
+                    renderer.setSize( window.innerWidth, window.innerHeight );
+                    renderer.setAnimationLoop( animate );
+                    document.body.appendChild( renderer.domElement );
+
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(hairMesh.positionData, 4));
+                    geometry.setIndex(Array.from(hairMesh.indexData));
+
+                    const material = new THREE.MeshBasicMaterial( { color: rgbToHex(
+                        hairMesh.color.r,
+                        hairMesh.color.g,
+                        hairMesh.color.b
+                    ) } );
+                    const cube = new THREE.Mesh( geometry, material );
+                    scene.add( cube );
+
+                    camera.position.z = 200;
+
+                    function animate() {
+
+                        cube.rotation.x += 0.01;
+                        cube.rotation.y += 0.01;
+
+                        renderer.render( scene, camera );
+
+                    }; animate();
                 })
         </script>
     </body>
