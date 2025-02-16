@@ -1,18 +1,15 @@
 # Mii Creator WASM
 
-This is a wrapper for FFL for WebAssembly, specifically for usage in Mii Creator.
+This is a wrapper for FFL for WebAssembly, specifically made for usage in Mii Creator.
 
-> ⚠️ Please manually add `ffl`, `rio` and `ninTexUtils` to the `lib` folder.
-> RIO cannot be built directly from source, you must add `GLESV3/gl3.h` header to RIO_GL.h.
+> ⚠️ Please manually add `ffl`, `rio` and `ninTexUtils` to the `lib` folder.<br>
+> Source RIO from [here](https://github.com/raymonable/rio). The primary release does not support GLES3 headers by default.
  
 > 📝 I installed ZLIB from vcpkg. You can build it from scratch if you'd like, it doesn't matter. As long as ZLIB is available.e
 
 I decided to wipe this README since I keep changing the function names and how they should work.
 
-I will add true documentation never.
+There is **no** documentation. Start by going into `bin/index.html` and look at how I use it.<br>
+Proper JS Bindings for the WebAssembly module are available in `interface.ts`.
 
-## TODO:
-
- - Add option to bind specific WebGL texture handles to render targets
- - Add mesh exporting
- - Profit???
+If you have any specific requests for things to add, please tell me! ❤️

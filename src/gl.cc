@@ -4,6 +4,9 @@
 
 #include <bindings.hh>
 
+// Preferably, this would be not stored as strings but with that templating thing.
+// Maybe there's something similar for Emscripten?
+
 const char* vertexShaderSource =
     "#version 300 es\n"
     "precision highp float;\n"

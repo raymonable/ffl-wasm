@@ -1,125 +1,33 @@
-<html>
-    <head>
-        <style>
-            body {
-                margin: 0;
-            }
-            canvas {
-                background: lightgrey;
-            }
-        </style>
-    </head>
-    <body>
-        <script src="ffl_wasm.js"></script>
-        <canvas id="canvas2" width="512" height="512"></canvas>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>FFL WebAssembly Demo</title>
+  </head>
+  <body>
+    <script type="module">
+      import FFLInterface from "./interface.ts"
+      
+      const cJasmineData = [0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
 
-        <script type="module">
-            import * as THREE from 'three';
+      (async() => {
+        // Do not create duplicates of the FFLInterface.
+        // They will not synchronize.
+        let fflInterface = new FFLInterface();
 
-            const canvas2 = document.querySelector("#canvas2")
-            const ctx2d = canvas2.getContext("2d");
+        let fflResHigh = await fetch("/AFLResHigh_2_3.dat").then(data => data.arrayBuffer());
+        await fflInterface.init(new Uint8Array(fflResHigh)); // Make sure you await.
+        
+        let success = fflInterface.setMii(new Uint8Array(cJasmineData), true);
+        console.log(success ? "Loaded Jasmine" : "Failed to load Jasmine");
 
-            // https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
-            function rgbToHex(r, g, b) {
-                return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
-            }
+        fflInterface.drawFaceMask(0);
+        let maskTextureData = fflInterface.getTexture("MASK");
+        console.log(maskTextureData);
 
-            function copyMeshData(pointer) {
-                let vertexCount = Module.HEAPU32[pointer / 4];
-                let indexCount = Module.HEAPU32[(pointer / 4) + 1];
-
-                let data = {
-                    color: {
-                        r: Module.HEAPF32[(pointer / 4) + 2] * 255,
-                        g: Module.HEAPF32[(pointer / 4) + 3] * 255,
-                        b: Module.HEAPF32[(pointer / 4) + 4] * 255
-                    },
-                    offset: (pointer / 4) + 5,
-                    vertexCount, indexCount
-                }
-                data.positionData = Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 4)); data.offset++;
-                data.texCoordData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 2)) : new Float32Array(0); data.offset++;
-                data.normalData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 3)) : new Float32Array(0); data.offset++;
-                data.tangentData = Module.HEAPU32[data.offset] !== 0 ? Module.HEAPF32.slice(Module.HEAPU32[data.offset] / 4, (Module.HEAPU32[data.offset] / 4 + vertexCount * 3)) : new Float32Array(0); data.offset++;
-
-                data.indexData = Module.HEAPU16.slice(Module.HEAPU32[data.offset] / 2, (Module.HEAPU32[data.offset] / 2 + (indexCount * 2))); data.offset++;
-
-                return data;
-            }
-
-            fetch("AFLResHigh_2_3.dat")
-                .then(_ => _.arrayBuffer())
-                .then(async data => {
-                    // expose to context for debugging purpose (this is disgusting)
-                    let context = Module.GL.createContext(document.createElement("canvas"), {
-                        majorVersion: 1
-                    });
-                    Module.GL.makeContextCurrent(context);
-
-                    // Start up FFL (store miiAddress)
-                    let address = Module.ccall("init", ["number"], ["number"], [data.byteLength]);
-                    Module.HEAPU8.set(new Uint8Array(data), address);
-                    let miiAddress = Module.ccall("init", ["number"], ["number"], [512]); // resolution
-                    console.log(!miiAddress ? "Failed to start" : "FFL good")
-
-                    // Set Mii
-                    let miiData = await fetch("mii_024.ffsd").then(_ => _.arrayBuffer())//[0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
-                    Module.HEAPU8.set(new Uint8Array(miiData), miiAddress);
-                    Module.ccall("mii", "boolean", ["boolean"], [true]); // true for all expressions
-
-                    // Drawing textures (call each of these)
-                    Module.ccall("drawFaceTexture", null, ["number"], [0]); // 0 is expression
-                    Module.ccall("drawFaceline");
-                    Module.ccall("drawXlu");
-
-                    // Exporting texture data to RGBA (I will abstract this sooner or later)
-                    // NOTE: There is NO validation for textures like this. Typically it'll say something like "ran out of memory". This means your texture name is invalid.
-                    let exportData = Module.ccall("exportTexture", ["number"], ["string"], ["MASK"]);
-                    let width = Module.HEAPU32[exportData / 4]; // offset 0
-                    let height = Module.HEAPU32[(exportData + 4) / 4]; // offset 4 (1 32-bit unsigned integer)
-                    let pixelData = Module.HEAPU8.slice(Module.HEAPU32[(exportData + 8) / 4], Module.HEAPU32[(exportData + 8) / 4] + (width * height * 4));  // offset 8 (2 32-bit unsigned integer)
-
-                    // Setting the pixel data on the canvas
-                    let canvasPixelData = ctx2d.getImageData(0, 0, width, height);
-                    canvasPixelData.data.set(pixelData, 0);
-                    ctx2d.putImageData(canvasPixelData, 0, 0);
-
-                    // Mesh data
-
-                    let hairMesh = copyMeshData(Module.ccall("getMesh", "number", ["string"], ["MASK"]));
-
-                    const scene = new THREE.Scene();
-                    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-
-                    const renderer = new THREE.WebGLRenderer();
-                    renderer.setSize( window.innerWidth, window.innerHeight );
-                    renderer.setAnimationLoop( animate );
-                    document.body.appendChild( renderer.domElement );
-
-                    const geometry = new THREE.BufferGeometry();
-                    geometry.setAttribute('position', new THREE.BufferAttribute(hairMesh.positionData, 4));
-                    geometry.setAttribute('uv', new THREE.BufferAttribute(hairMesh.texCoordData, 2));
-                    geometry.setIndex(Array.from(hairMesh.indexData));
-
-                    const texture = new THREE.DataTexture( pixelData, width, height );
-                    texture.needsUpdate = true;
-                    texture.wrapS = THREE.RepeatWrapping; // Required for FACELINE
-
-                    const material = new THREE.MeshBasicMaterial( { map: texture, transparent: true } );
-                    const cube = new THREE.Mesh( geometry, material );
-                    scene.add( cube );
-                    scene.background = new THREE.Color( 0xff0000 );
-
-                    camera.position.z = 75;
-
-                    function animate() {
-
-
-
-                        renderer.render( scene, camera );
-
-                    }; animate();
-                })
-        </script>
-    </body>
+        let hairMeshData = fflInterface.getMesh("MASK");
+        console.log(hairMeshData);
+      })();
+    </script>
+  </body>
 </html>
