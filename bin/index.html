@@ -28,30 +28,26 @@
         let fflResHigh = await fetch("/AFLResHigh_2_3.dat").then(data => data.arrayBuffer());
         await fflInterface.init(new Uint8Array(fflResHigh)); // Make sure you await.
         
-        let success = fflInterface.setMii(new Uint8Array(await fetch("2025-02-16_04-02-11-Gen3Studio.ffsd").then(_ => _.arrayBuffer())), true);
+        let success = fflInterface.setMii(cJasmineData, true);
         console.log(success ? "Loaded Jasmine" : "Failed to load Jasmine");
 
         fflInterface.drawFaceMask(0);
-        let maskTextureData = fflInterface.getTexture("CAP");
+        let maskTextureData = fflInterface.getTexture("HAIR");
         console.log(maskTextureData);
 
-        let hairMeshData = fflInterface.getMesh("CAP");
+        let hairMeshData = fflInterface.getMesh("HAIR");
         console.log(hairMeshData);
 
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.BufferAttribute(hairMeshData.positionData, 4));
-        geometry.setAttribute("normal", (() => {
-          let buffer = new THREE.Uint8BufferAttribute(hairMeshData.normalData, 3);
-          buffer.normalized = true;
-          return buffer;
-        })());
+        geometry.setAttribute("normal", new THREE.BufferAttribute(hairMeshData.normalData, 4));
         geometry.setIndex(Array.from(hairMeshData.indexData));
         const material = new THREE.MeshLambertMaterial( { color: 0x00ff00  } );
         const cube = new THREE.Mesh( geometry, material );
         scene.add( cube );
-
+        const ambientLight = new THREE.AmbientLight( 0x909090 ); // soft white light
+        scene.add( ambientLight );
         const light = new THREE.PointLight(0xFFFFFF, 4, 1000, 0.5);
-        light.position.copy(camera.position);
         scene.add(light);
 
         camera.position.z = 100;
@@ -61,6 +57,7 @@
           cube.rotateY(0.02);
 
           renderer.render( scene, camera );
+          light.position.copy(camera.position);
         }
         renderer.setAnimationLoop( animate );
       })();

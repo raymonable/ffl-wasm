@@ -30,8 +30,8 @@ export interface FFLMeshInterface {
     offset: number,
     positionData: Float32Array,
     texCoordData: Float32Array,
-    normalData: Uint8Array,
-    tangentData: Uint8Array,
+    normalData: Float32Array,
+    tangentData: Float32Array,
     indexData: Uint16Array
 }
 
@@ -105,8 +105,8 @@ export default class FFLInterface {
 
         data.positionData = this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)); data.offset++;
         data.texCoordData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 2)) : new Float32Array(0); data.offset++;
-        data.normalData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPU8.slice(this.binary?.HEAPU32[data.offset], (this.binary?.HEAPU32[data.offset] + (vertexCount * 4))) : new Uint8Array(0); data.offset++;
-        data.tangentData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPU8.slice(this.binary?.HEAPU32[data.offset], (this.binary?.HEAPU32[data.offset] + (vertexCount * 4))) : new Uint8Array(0); data.offset++;
+        data.normalData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)) : new Float32Array(0); data.offset++;
+        data.tangentData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)) : new Float32Array(0); data.offset++;
 
         data.indexData = this.binary?.HEAPU16.slice(this.binary?.HEAPU32[data.offset] / 2, (this.binary?.HEAPU32[data.offset] / 2 + (indexCount * 2))); data.offset++;
 
