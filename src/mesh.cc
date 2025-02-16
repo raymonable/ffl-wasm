@@ -27,6 +27,8 @@ void shaderDrawCallback(void* pObj, const FFLDrawParam* drawParam) {
         const auto stride = static_cast<int>(buffer->stride);
         const auto size = static_cast<int>(buffer->size);
 
+        printf("Type: %i. Size: %i. Stride: %i\n", type, size, stride);
+
 #ifdef RIO_DEBUG
         printf("Stride: %s\nSize: %s\nBuffer Type:%s\n", std::to_string(stride).c_str(), std::to_string(size).c_str(), std::to_string(type).c_str());
 #endif

@@ -6,9 +6,19 @@
   </head>
   <body>
     <script type="module">
+      import * as THREE from 'three';
+      import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+
       import FFLInterface from "./interface.ts"
       
       const cJasmineData = [0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera( 75, 800 / 600, 0.1, 1000 );
+
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize( 800, 600 );
+      document.body.appendChild( renderer.domElement );
 
       (async() => {
         // Do not create duplicates of the FFLInterface.
@@ -18,15 +28,41 @@
         let fflResHigh = await fetch("/AFLResHigh_2_3.dat").then(data => data.arrayBuffer());
         await fflInterface.init(new Uint8Array(fflResHigh)); // Make sure you await.
         
-        let success = fflInterface.setMii(new Uint8Array(cJasmineData), true);
+        let success = fflInterface.setMii(new Uint8Array(await fetch("2025-02-16_04-02-11-Gen3Studio.ffsd").then(_ => _.arrayBuffer())), true);
         console.log(success ? "Loaded Jasmine" : "Failed to load Jasmine");
 
         fflInterface.drawFaceMask(0);
-        let maskTextureData = fflInterface.getTexture("MASK");
+        let maskTextureData = fflInterface.getTexture("CAP");
         console.log(maskTextureData);
 
-        let hairMeshData = fflInterface.getMesh("MASK");
+        let hairMeshData = fflInterface.getMesh("CAP");
         console.log(hairMeshData);
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(hairMeshData.positionData, 4));
+        geometry.setAttribute("normal", (() => {
+          let buffer = new THREE.Uint8BufferAttribute(hairMeshData.normalData, 3);
+          buffer.normalized = true;
+          return buffer;
+        })());
+        geometry.setIndex(Array.from(hairMeshData.indexData));
+        const material = new THREE.MeshLambertMaterial( { color: 0x00ff00  } );
+        const cube = new THREE.Mesh( geometry, material );
+        scene.add( cube );
+
+        const light = new THREE.PointLight(0xFFFFFF, 4, 1000, 0.5);
+        light.position.copy(camera.position);
+        scene.add(light);
+
+        camera.position.z = 100;
+        camera.position.y = 25;
+
+        function animate() {
+          cube.rotateY(0.02);
+
+          renderer.render( scene, camera );
+        }
+        renderer.setAnimationLoop( animate );
       })();
     </script>
   </body>
