@@ -27,7 +27,6 @@ private:
 
 FFLCharModel* getMii();
 GLuint getProgram();
-void generateMiiMeshes();
 
 bool initializeGL();
 void initializeDrawCallbacks();
@@ -43,25 +42,29 @@ struct RGB {
 	float g;
 	float b;
 };
-#pragma pack(1)
 struct MeshData {
+	// This is what is exposed to JavaScript. Not using buffers for simplicity.
 	uint32_t vertexCount;
 	uint32_t indexCount;
 	RGB rgb;
 
-	unsigned char* positionData;
-	unsigned char* texCoordData;
-	unsigned char* normalData;
-	unsigned char* tangentData;
+	uint16_t* indexData;
 
-	unsigned char* indexData;
+	float* attributeData[FFL_ATTRIBUTE_BUFFER_TYPE_MAX];
 };
-#pragma pack()
+struct MeshDataBuffers {
+	MeshData* meshData;
+
+	Buffer* indexBuffer = nullptr;
+	Buffer* attributeBuffers[FFL_ATTRIBUTE_BUFFER_TYPE_MAX];
+};
+
 
 extern "C" {
 	EMSCRIPTEN_KEEPALIVE void* init(int size);
 	EMSCRIPTEN_KEEPALIVE bool mii(bool);
 
+	EMSCRIPTEN_KEEPALIVE void generateMiiMeshes();
 	EMSCRIPTEN_KEEPALIVE void drawFaceTexture(int expression);
 	EMSCRIPTEN_KEEPALIVE void drawFaceline();
 	EMSCRIPTEN_KEEPALIVE void drawXlu();

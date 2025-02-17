@@ -9,7 +9,10 @@
 #include <cstring>
 #include <map>
 
+#include <malloc.h>
+
 #include <emscripten.h>
+#include <emscripten/heap.h>
 
 #define GL_GLEXT_PROTOTYPES
 #include <GLES3/gl3.h>

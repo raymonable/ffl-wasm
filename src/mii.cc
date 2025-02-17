@@ -30,7 +30,7 @@ void* init(int size) {
         initializeDrawCallbacks();
         FFLInitResGPUStep();
 
-        if (size != 0)
+        if (size != 0) {
             // Am I stupid? Does a function to cast the integer to an enum already exist? I really hope so, honestly
             switch (size) {
                 case 128:
@@ -47,6 +47,8 @@ void* init(int size) {
                     fflResolution = FFL_RESOLUTION_TEX_1024; break;
                 default: break;
             }
+        } else
+            fflResolution = FFL_RESOLUTION_TEX_512;;
 
         gMiiDataBuffer = new Buffer(96);
         return gMiiDataBuffer->get<void*>();
@@ -70,7 +72,7 @@ bool mii(bool allExpressions) {
 
     FFLCharModelDesc modelDescription{};
     modelDescription.resolution = fflResolution;
-    modelDescription.modelFlag = FFL_MODEL_FLAG_NORMAL;
+    modelDescription.modelFlag = FFL_MODEL_FLAG_NORMAL | FFL_MODEL_FLAG_NEW_EXPRESSIONS;
     modelDescription.resourceType = FFL_RESOURCE_TYPE_HIGH;
 
     if (allExpressions) {

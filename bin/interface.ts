@@ -60,6 +60,7 @@ export default class FFLInterface {
         if (status) {
             this.binary?.ccall("drawXlu");
             this.binary?.ccall("drawFaceline");
+
             return true;
         } else
             return false;
@@ -67,6 +68,9 @@ export default class FFLInterface {
     drawFaceMask(FFLExpression: number = 0) {
         this.binary?.ccall("drawFaceTexture", null, ["number"], [FFLExpression]);
     };
+    generateMeshes() {
+        this.binary?.ccall("generateMiiMeshes", null);
+    }
 
     getTexture(FFLTexture: string): FFLTextureInterface | undefined {
         if (!this.binary) return;
@@ -76,7 +80,7 @@ export default class FFLInterface {
         let width = this.binary?.HEAPU32[textureAddress / 4];
         let height = this.binary?.HEAPU32[(textureAddress / 4) + 1];
 
-        if (!width || !height)
+        if (!width || !height || !textureAddress)
             return;
 
         return {
@@ -88,10 +92,12 @@ export default class FFLInterface {
     };
     getMesh(FFLMesh: string): FFLMeshInterface | undefined {
         if (!this.binary) return;
-        
+
         let pointer = this.binary?.ccall("getMesh", "number", ["string"], [FFLMesh]);
         let vertexCount = this.binary?.HEAPU32[pointer / 4];
         let indexCount = this.binary?.HEAPU32[(pointer / 4) + 1];
+
+        if (pointer == 0) return;
 
         let data = {
             color: {
@@ -103,12 +109,12 @@ export default class FFLInterface {
             vertexCount, indexCount
         } as FFLMeshInterface;
 
+        data.indexData = this.binary?.HEAPU16.slice(this.binary?.HEAPU32[data.offset] / 2, (this.binary?.HEAPU32[data.offset] / 2 + (indexCount * 2))); data.offset++;
+
         data.positionData = this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)); data.offset++;
         data.texCoordData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 2)) : new Float32Array(0); data.offset++;
         data.normalData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)) : new Float32Array(0); data.offset++;
         data.tangentData = this.binary?.HEAPU32[data.offset] !== 0 ? this.binary?.HEAPF32.slice(this.binary?.HEAPU32[data.offset] / 4, (this.binary?.HEAPU32[data.offset] / 4 + vertexCount * 4)) : new Float32Array(0); data.offset++;
-
-        data.indexData = this.binary?.HEAPU16.slice(this.binary?.HEAPU32[data.offset] / 2, (this.binary?.HEAPU32[data.offset] / 2 + (indexCount * 2))); data.offset++;
 
         return data;
     };

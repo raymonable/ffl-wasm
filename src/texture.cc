@@ -130,15 +130,17 @@ void textureCallback(void* v, const FFLTextureInfo* pTextureInfo, FFLTexture* pT
     *(void**)pTexture = (void*)handle;
 };
 
-void textureDeleteCallback() {
-
+void textureDeleteCallback(void* v, FFLTexture* pTexture) {
+    auto handle = reinterpret_cast<GLuint>(*reinterpret_cast<void**>(pTexture));
+    glDeleteTextures(1, &handle);
+    *(void**)pTexture = nullptr;
 }
 
 // (global)
 void initializeDrawCallbacks() {
     fflTextureCallback.useOriginalTileMode = false;
     fflTextureCallback.pCreateFunc = textureCallback;
-    // TODO: delete callback
+    fflTextureCallback.pDeleteFunc = textureDeleteCallback;
     FFLSetTextureCallback(&fflTextureCallback);
 
     fflShaderCallback.pDrawFunc = shaderCallback;
@@ -161,17 +163,16 @@ void* currentTextureExportData = nullptr;
 RenderTextureExport* exportTexture(const char* target) {
     if (currentTextureExportData != nullptr)
         free(currentTextureExportData);
-    free(renderTextureExport);
     if (renderTextures.find(target) != renderTextures.end()) {
         auto renderTexture = renderTextures[target];
         glBindFramebuffer(GL_FRAMEBUFFER, renderTexture.framebufferHandle);
         currentTextureExportData = malloc(renderTexture.width * renderTexture.height * 4);
         glReadPixels(0, 0, renderTexture.width, renderTexture.height, GL_RGBA, GL_UNSIGNED_BYTE, currentTextureExportData);
-        renderTextureExport = new RenderTextureExport{
-            .width = static_cast<uint32_t>(renderTexture.width),
-            .height = static_cast<uint32_t>(renderTexture.height),
-            .data = currentTextureExportData
-        };
+        if (!renderTextureExport)
+            renderTextureExport = new RenderTextureExport();
+        renderTextureExport->width = static_cast<uint32_t>(renderTexture.width);
+        renderTextureExport->height = static_cast<uint32_t>(renderTexture.height);
+        renderTextureExport->data = currentTextureExportData;
         return renderTextureExport;
     }
     return nullptr;
@@ -224,6 +225,7 @@ void drawFaceTexture(int expression) {
     FFLShaderCallback** ppCallback = &pCallback;
 
     FFLiMaskTexturesTempObject* pObject = &iMiiCharacterModel->pTextureTempObject->maskTextures;
+
     FFLiInvalidatePartsTextures(&pObject->partsTextures);
 
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

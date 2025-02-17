@@ -13,12 +13,72 @@
       
       const cJasmineData = [0x03, 0x00, 0x00, 0x40, 0xA0, 0x41, 0x38, 0xC4, 0xA0, 0x84, 0x00, 0x00, 0xDB, 0xB8, 0x87, 0x31, 0xBE, 0x60, 0x2B, 0x2A, 0x2A, 0x42, 0x00, 0x00, 0x59, 0x2D, 0x4A, 0x00, 0x61, 0x00, 0x73, 0x00, 0x6D, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x37, 0x12, 0x10, 0x7B, 0x01, 0x21, 0x6E, 0x43, 0x1C, 0x0D, 0x64, 0xC7, 0x18, 0x00, 0x08, 0x1E, 0x82, 0x0D, 0x00, 0x30, 0x41, 0xB3, 0x5B, 0x82, 0x6D, 0x00, 0x00, 0x6F, 0x00, 0x73, 0x00, 0x69, 0x00, 0x67, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x3A];
 
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera( 75, 800 / 600, 0.1, 1000 );
+      let scene = new THREE.Scene();
+      scene.background = new THREE.Color(0.9, 0.86, 1)
+      const camera = new THREE.PerspectiveCamera( 70, 800 / 600, 0.1, 1000 );
+      camera.position.z = 150;
+      camera.position.y = 25;
+
+      THREE.ColorManagement.enabled = false; // causes colors to look inaccurate?
 
       const renderer = new THREE.WebGLRenderer();
       renderer.setSize( 800, 600 );
       document.body.appendChild( renderer.domElement );
+
+      function createMiiScene(fflInterface) {
+        // This loads ALL possible objects.
+        const MESHES = [
+          "HAIR"
+        ];
+        MESHES.forEach(name => {
+          let meshData = fflInterface.getMesh(name);
+          let texData = fflInterface.getTexture(name);
+
+          if (meshData) {
+            // export
+            let data = "v ";
+            for (var i = 0; meshData.vertexCount * 4 > i; i++) {
+              let v = i % 4;
+              if (v == 3) {
+                data += "<br>v ";
+              } else
+                data += meshData.positionData[i] + " ";
+            };
+
+            console.log(meshData);
+
+            document.write(data);
+
+            let material = new THREE.MeshLambertMaterial();
+            if (texData) {
+              let texture = new THREE.DataTexture(texData.data, texData.width, texData.height);
+              texture.wrapS = THREE.MirroredRepeatWrapping;
+              texture.needsUpdate = true;
+              material.map = texture;
+              material.transparent = true;
+            } else {
+              material.color = new THREE.Color();
+            }
+
+            let geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.BufferAttribute(meshData.positionData, 4));
+            geometry.setAttribute("normal", new THREE.BufferAttribute(meshData.normalData, 4));
+            geometry.setAttribute("uv", new THREE.BufferAttribute(meshData.texCoordData, 2));
+            geometry.setIndex(Array.from(meshData.indexData));
+            let object = new THREE.Mesh(geometry, material);
+            scene.add(object);
+          }
+        });
+
+        const pointLight = new THREE.PointLight(0xFFFFFF, 1, 1000, 0);
+
+        scene.add(new THREE.AmbientLight(0xA0A0A0, 1));
+        scene.add(pointLight);
+
+        // draw
+        pointLight.position.copy(camera.position);
+        renderer.render(scene, camera);
+      }
 
       (async() => {
         // Do not create duplicates of the FFLInterface.
@@ -27,39 +87,27 @@
 
         let fflResHigh = await fetch("/AFLResHigh_2_3.dat").then(data => data.arrayBuffer());
         await fflInterface.init(new Uint8Array(fflResHigh)); // Make sure you await.
-        
-        let success = fflInterface.setMii(cJasmineData, true);
+
+        // Time start
+        let t = new Date();
+
+        let success = fflInterface.setMii(cJasmineData, false);
         console.log(success ? "Loaded Jasmine" : "Failed to load Jasmine");
 
         fflInterface.drawFaceMask(0);
-        let maskTextureData = fflInterface.getTexture("HAIR");
-        console.log(maskTextureData);
+        let data = fflInterface.getTexture("MASK");
 
-        let hairMeshData = fflInterface.getMesh("HAIR");
-        console.log(hairMeshData);
+        fflInterface.generateMeshes();
 
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(hairMeshData.positionData, 4));
-        geometry.setAttribute("normal", new THREE.BufferAttribute(hairMeshData.normalData, 4));
-        geometry.setIndex(Array.from(hairMeshData.indexData));
-        const material = new THREE.MeshLambertMaterial( { color: 0x00ff00  } );
-        const cube = new THREE.Mesh( geometry, material );
-        scene.add( cube );
-        const ambientLight = new THREE.AmbientLight( 0x909090 ); // soft white light
-        scene.add( ambientLight );
-        const light = new THREE.PointLight(0xFFFFFF, 4, 1000, 0.5);
-        scene.add(light);
+        let meshData = fflInterface.getMesh("HAIR");
+        console.log(meshData);
+        fflInterface.setMii(cJasmineData, false);
 
-        camera.position.z = 100;
-        camera.position.y = 25;
+        fflInterface.generateMeshes();
 
-        function animate() {
-          cube.rotateY(0.02);
+        createMiiScene(fflInterface);
 
-          renderer.render( scene, camera );
-          light.position.copy(camera.position);
-        }
-        renderer.setAnimationLoop( animate );
+        console.log((new Date().getTime() - t.getTime()));
       })();
     </script>
   </body>
